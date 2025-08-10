@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+:root { --bg:#0b0c0f; --text:#eaecef; --muted:#9aa0a6; --card:#12141a; --border:#222; }
+html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; }
+a { color:inherit; text-decoration:none; }
+.container { max-width: 1000px; margin: 0 auto; padding: 16px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; list-style:none; padding:0; }
+.muted { color: var(--muted); }
