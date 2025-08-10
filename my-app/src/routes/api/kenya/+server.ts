@@ -19,6 +19,136 @@ const idFor = (url: string, title: string) =>
 		.update((url || '') + (title || ''))
 		.digest('hex');
 
+/** ---- Kenya relevance heuristics ---- */
+const COUNTIES = [
+	'Nairobi',
+	'Mombasa',
+	'Kisumu',
+	'Nakuru',
+	'Uasin Gishu',
+	'Kiambu',
+	'Machakos',
+	'Kajiado',
+	'Murang’a',
+	'Nyeri',
+	'Meru',
+	'Embu',
+	'Kirinyaga',
+	'Laikipia',
+	'Tharaka-Nithi',
+	'Kilifi',
+	'Kwale',
+	'Taita-Taveta',
+	'Tana River',
+	'Lamu',
+	'Garissa',
+	'Wajir',
+	'Mandera',
+	'Marsabit',
+	'Isiolo',
+	'Samburu',
+	'Turkana',
+	'West Pokot',
+	'Baringo',
+	'Elgeyo-Marakwet',
+	'Nandi',
+	'Bomet',
+	'Kericho',
+	'Narok',
+	'Homa Bay',
+	'Migori',
+	'Kisii',
+	'Nyamira',
+	'Siaya',
+	'Busia',
+	'Vihiga',
+	'Bungoma',
+	'Kakamega',
+	'Trans Nzoia',
+	'Kitui',
+	'Makueni'
+];
+const KENYA_TERMS = [
+	'kenya',
+	'kenyan',
+	'nairobi',
+	'ksh',
+	'kshs',
+	'shillings',
+	'iebc',
+	'kdf',
+	'kplc',
+	'kra',
+	'ntsa',
+	'eacc',
+	'huduma',
+	'state house',
+	'county assembly',
+	'governor',
+	'mp ',
+	'mca ',
+	'cs ',
+	'cabinet secretary',
+	'safaricom',
+	'equity bank',
+	'kcb',
+	'harambee stars',
+	'shujaa',
+	'gor mahia',
+	'afc leopards'
+];
+const GLOBAL_EXCLUDE_HINTS = [
+	'ukraine',
+	'russia',
+	'moscow',
+	'kyiv',
+	'israel',
+	'gaza',
+	'european union',
+	'eu ',
+	'nato',
+	'biden',
+	'trump',
+	'britain',
+	'france',
+	'germany',
+	'china',
+	'beijing',
+	'india',
+	'japan',
+	'tokyo',
+	'seoul',
+	'australia',
+	'canada'
+];
+
+function hasAny(hay: string, list: string[]): boolean {
+	const s = ` ${hay.toLowerCase()} `;
+	return list.some((w) => s.includes(` ${w.toLowerCase()} `));
+}
+function hasCounty(hay: string): boolean {
+	const l = hay.toLowerCase();
+	return COUNTIES.some((c) =>
+		new RegExp(`\\b${c.toLowerCase().replace(/[-.]/g, '\\$&')}\\b`).test(l)
+	);
+}
+function isKenyaRelevant(title: string, excerpt: string, tags: string[]): boolean {
+	const hay = [title, excerpt, ...tags].join(' ').toLowerCase();
+
+	// strong positive signals
+	if (hay.includes(' kenya ') || hay.includes(' kenyan ')) return true;
+	if (hasCounty(hay)) return true;
+	if (hasAny(hay, KENYA_TERMS)) return true;
+	if (tags.some((t) => /kenya|county|counties|nairobi/i.test(t))) return true;
+
+	// weak negative: if it looks very global AND we found no positive signals, drop it
+	if (hasAny(hay, GLOBAL_EXCLUDE_HINTS)) return false;
+
+	// default: keep (some local stories don’t name Kenya explicitly)
+	return true;
+}
+/** ------------------------------------ */
+
 type RssItem = {
 	title?: string;
 	link?: string;
@@ -73,10 +203,11 @@ async function fetchText(url: string, ttlMs = 5 * 60_000, timeoutMs = 12_000): P
 	try {
 		try {
 			return await once(ctrl.signal);
-		} catch (_) {
+		} catch {
 			await new Promise((r) => setTimeout(r, 500));
 			return await once(ctrl.signal);
 		}
+
 	} finally {
 		clearTimeout(t);
 	}
@@ -92,27 +223,33 @@ function normalize(xml: string, url: string): Article[] {
 			: [];
 	const source = channel.title || new URL(url).hostname;
 
-	return raw
-		.map((i) => {
-			const tags = i?.category
-				? Array.isArray(i.category)
-					? i.category.map(String)
-					: [String(i.category)]
-				: [];
-			const title = i?.title ?? '';
-			const link = i?.link ?? '';
-			return {
-				id: idFor(link, title),
-				source,
-				title,
-				url: link,
-				image: extractImage(i),
-				excerpt: toPlainText(i?.description),
-				category: mapCategoryFrom(title, tags),
-				publishedAt: i?.pubDate ? new Date(i.pubDate).toISOString() : new Date().toISOString()
-			} as Article;
-		})
-		.filter((a) => a.title && a.url);
+	const mapped = raw.map((i) => {
+		const tags = i?.category
+			? Array.isArray(i.category)
+				? i.category.map(String)
+				: [String(i.category)]
+			: [];
+		const title = i?.title ?? '';
+		const link = i?.link ?? '';
+		const excerpt = toPlainText(i?.description);
+		const keep = isKenyaRelevant(title, excerpt, tags);
+		if (!keep) return null;
+
+		return {
+			id: idFor(link, title),
+			source,
+			title,
+			url: link,
+			image: extractImage(i),
+			excerpt,
+			category: mapCategoryFrom(title, tags),
+			publishedAt: i?.pubDate ? new Date(i.pubDate).toISOString() : new Date().toISOString()
+		} as Article | null;
+	});
+
+	return mapped
+		.filter((a): a is Article => a !== null) // narrow away nulls
+		.filter((a) => a.title !== '' && a.url !== ''); // safe to access props
 }
 
 export const GET: RequestHandler = async () => {
@@ -132,10 +269,13 @@ export const GET: RequestHandler = async () => {
 		.sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt));
 
 	if (deduped.length === 0) {
-		return new Response(JSON.stringify({ items: [], error: 'All feeds failed.' }), {
-			status: 502,
-			headers: { 'content-type': 'application/json' }
-		});
+		return new Response(
+			JSON.stringify({ items: [], error: 'All feeds failed or were filtered as non‑Kenyan.' }),
+			{
+				status: 502,
+				headers: { 'content-type': 'application/json' }
+			}
+		);
 	}
 	return new Response(JSON.stringify({ items: deduped }), {
 		headers: { 'content-type': 'application/json' }

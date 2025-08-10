@@ -73,10 +73,11 @@ async function fetchText(url: string, ttlMs = 5 * 60_000, timeoutMs = 12_000): P
 	try {
 		try {
 			return await once(ctrl.signal);
-		} catch (_) {
+		} catch {
 			await new Promise((r) => setTimeout(r, 500));
 			return await once(ctrl.signal);
 		}
+
 	} finally {
 		clearTimeout(t);
 	}
