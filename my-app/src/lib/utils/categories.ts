@@ -1,10 +1,10 @@
 const rules: Record<string, RegExp[]> = {
 	Politics: [/parliament|senate|mp\b|president|election|cabinet|gazette/i],
-	Business: [/market|economy|bank|trade|company|stock|shilling/i],
+	Business: [/market|economy|bank|trade|company|stock|shilling|inflation/i],
 	Sports: [/match|league|cup|athletics|goal|olympic|sport/i],
-	Tech: [/technology|startup|app|software|spectrum|internet|ai\b/i],
-	Health: [/health|hospital|clinic|disease|vaccine|malaria|covid/i],
-	Entertainment: [/music|film|celebrity|arts?|festival|entertainment/i]
+	Tech: [/technology|startup|app|software|spectrum|internet|ai\b|cyber/i],
+	Health: [/health|hospital|clinic|disease|vaccine|malaria|covid|doctor|nurse/i],
+	Entertainment: [/music|film|celebrity|arts?|festival|entertainment|showbiz/i]
 };
 
 export function mapCategoryFrom(title: string, tags: string[] = []): string | undefined {

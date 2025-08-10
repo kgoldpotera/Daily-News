@@ -3,11 +3,12 @@ import { XMLParser } from 'fast-xml-parser';
 import { createHash } from 'crypto';
 import { summarizeToSentences } from '$lib/utils/summarize';
 import { mapCategoryFrom } from '$lib/utils/categories';
+import { toPlainText } from '$lib/utils/sanitize';
+import { getCached, setCached } from '$lib/server/cache';
 import type { Article } from '$lib/types';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
-// Use https where available
 const FEEDS = [
 	'https://feeds.reuters.com/reuters/topNews',
 	'https://www.aljazeera.com/xml/rss/all.xml',
@@ -27,53 +28,89 @@ type RssItem = {
 	summary?: string;
 	category?: string | string[];
 	pubDate?: string;
+	enclosure?: { url?: string };
+	['media:content']?: { url?: string };
+	['media:thumbnail']?: { url?: string };
+	['content:encoded']?: string;
 };
+type RssChannel = { title?: string; item?: RssItem | RssItem[] };
+type RssDoc = { rss?: { channel?: RssChannel }; channel?: RssChannel };
 
-type RssChannel = {
-	title?: string;
-	item?: RssItem | RssItem[];
-};
+function extractImage(it: RssItem): string | undefined {
+	if (it['media:content']?.url) return String(it['media:content']!.url);
+	if (it['media:thumbnail']?.url) return String(it['media:thumbnail']!.url);
+	if (it.enclosure?.url) return String(it.enclosure.url);
+	const content = it['content:encoded'];
+	if (typeof content === 'string') {
+		const m = content.match(/<img[^>]+src="([^"]+)"/i);
+		if (m) return m[1];
+	}
+	return undefined;
+}
 
-type RssDoc = {
-	rss?: { channel?: RssChannel };
-	channel?: RssChannel;
-};
+async function fetchText(url: string, ttlMs = 5 * 60_000, timeoutMs = 12_000): Promise<string> {
+	const cached = getCached(url, ttlMs);
+	const headers: Record<string, string> = { 'User-Agent': 'SvelteNews/0.3' };
+	if (cached?.etag) headers['If-None-Match'] = cached.etag;
+	if (cached?.lastMod) headers['If-Modified-Since'] = cached.lastMod;
+
+	async function once(signal: AbortSignal) {
+		const res = await fetch(url, { headers, redirect: 'follow', signal });
+		if (res.status === 304 && cached) return cached.body;
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const body = await res.text();
+		setCached(url, {
+			body,
+			etag: res.headers.get('etag') ?? undefined,
+			lastMod: res.headers.get('last-modified') ?? undefined,
+			ts: Date.now()
+		});
+		return body;
+	}
+
+	const ctrl = new AbortController();
+	const t = setTimeout(() => ctrl.abort(), timeoutMs);
+	try {
+		try {
+			return await once(ctrl.signal);
+		} catch (_) {
+			await new Promise((r) => setTimeout(r, 500));
+			return await once(ctrl.signal);
+		}
+	} finally {
+		clearTimeout(t);
+	}
+}
 
 export const GET: RequestHandler = async () => {
 	const lists = await Promise.allSettled(
 		FEEDS.map(async (url) => {
-			const res = await fetch(url, { headers: { 'User-Agent': 'SvelteNews/0.2' } });
-			if (!res.ok) throw new Error(String(res.status));
-			const xml = await res.text();
-
+			const xml = await fetchText(url);
 			const j = parser.parse(xml) as RssDoc;
 			const ch = j?.rss?.channel ?? j?.channel ?? {};
-			const raw = Array.isArray(ch.item) ? ch.item : ch.item ? [ch.item] : [];
-
+			const items: RssItem[] = Array.isArray(ch.item) ? ch.item : ch.item ? [ch.item] : [];
 			const source = ch.title || new URL(url).hostname;
 
-			const articles: Article[] = raw.map((i) => {
+			return items.map((i) => {
 				const title = i?.title ?? '';
 				const link = i?.link ?? '';
-				const desc = i?.description ?? i?.summary ?? '';
+				const desc = toPlainText(i?.description ?? i?.summary);
 				const tags = i?.category
 					? Array.isArray(i.category)
 						? i.category.map(String)
 						: [String(i.category)]
 					: [];
-
 				return {
 					id: idFor(link, title),
 					source,
 					title,
 					url: link,
+					image: extractImage(i),
 					summary: summarizeToSentences(desc, 3),
 					category: mapCategoryFrom(title, tags),
 					publishedAt: i?.pubDate ? new Date(i.pubDate).toISOString() : new Date().toISOString()
-				};
+				} as Article;
 			});
-
-			return articles;
 		})
 	);
 
