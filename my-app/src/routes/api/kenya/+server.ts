@@ -5,14 +5,12 @@ import { mapCategoryFrom } from '$lib/utils/categories';
 import { toPlainText } from '$lib/utils/sanitize';
 import { getCached, setCached } from '$lib/server/cache';
 import type { Article } from '$lib/types';
+// remove: import { KENYA_SOURCES, KENYAN_HOSTS } from '$lib/sources/kenya';
+import { KENYAN_HOSTS } from '$lib/sources/kenya';
+import { getSources } from '$lib/server/admin_store';
+
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
-
-const FEEDS = [
-	'https://www.standardmedia.co.ke/rss/headlines.php',
-	'https://www.capitalfm.co.ke/news/feed/',
-	'https://www.kbc.co.ke/feed/'
-];
 
 const idFor = (url: string, title: string) =>
 	createHash('md5')
@@ -134,17 +132,11 @@ function hasCounty(hay: string): boolean {
 }
 function isKenyaRelevant(title: string, excerpt: string, tags: string[]): boolean {
 	const hay = [title, excerpt, ...tags].join(' ').toLowerCase();
-
-	// strong positive signals
 	if (hay.includes(' kenya ') || hay.includes(' kenyan ')) return true;
 	if (hasCounty(hay)) return true;
 	if (hasAny(hay, KENYA_TERMS)) return true;
 	if (tags.some((t) => /kenya|county|counties|nairobi/i.test(t))) return true;
-
-	// weak negative: if it looks very global AND we found no positive signals, drop it
 	if (hasAny(hay, GLOBAL_EXCLUDE_HINTS)) return false;
-
-	// default: keep (some local stories don’t name Kenya explicitly)
 	return true;
 }
 /** ------------------------------------ */
@@ -173,6 +165,11 @@ function extractImage(it: RssItem): string | undefined {
 		if (m) return m[1];
 	}
 	return undefined;
+}
+
+function isAllowedHost(h: string): boolean {
+	// allow subdomains of approved Kenyan hosts
+	return KENYAN_HOSTS.some((allow) => h === allow || h.endsWith(`.${allow}`));
 }
 
 async function fetchText(url: string, ttlMs = 5 * 60_000, timeoutMs = 12_000): Promise<string> {
@@ -207,13 +204,12 @@ async function fetchText(url: string, ttlMs = 5 * 60_000, timeoutMs = 12_000): P
 			await new Promise((r) => setTimeout(r, 500));
 			return await once(ctrl.signal);
 		}
-
 	} finally {
 		clearTimeout(t);
 	}
 }
 
-function normalize(xml: string, url: string): Article[] {
+function normalize(xml: string, feedUrl: string): Article[] {
 	const j = parser.parse(xml) as RssDoc;
 	const channel = j?.rss?.channel ?? j?.channel ?? {};
 	const raw: RssItem[] = Array.isArray(channel.item)
@@ -221,7 +217,7 @@ function normalize(xml: string, url: string): Article[] {
 		: channel.item
 			? [channel.item]
 			: [];
-	const source = channel.title || new URL(url).hostname;
+	const source = channel.title || new URL(feedUrl).hostname;
 
 	const mapped = raw.map((i) => {
 		const tags = i?.category
@@ -232,8 +228,17 @@ function normalize(xml: string, url: string): Article[] {
 		const title = i?.title ?? '';
 		const link = i?.link ?? '';
 		const excerpt = toPlainText(i?.description);
-		const keep = isKenyaRelevant(title, excerpt, tags);
-		if (!keep) return null;
+
+		// Host allow-list: only keep Kenyan domains
+		try {
+			const h = new URL(link).hostname;
+			if (!isAllowedHost(h)) return null;
+		} catch {
+			return null;
+		}
+
+		// Kenya relevance heuristic
+		if (!isKenyaRelevant(title, excerpt, tags)) return null;
 
 		return {
 			id: idFor(link, title),
@@ -248,35 +253,41 @@ function normalize(xml: string, url: string): Article[] {
 	});
 
 	return mapped
-		.filter((a): a is Article => a !== null) // narrow away nulls
-		.filter((a) => a.title !== '' && a.url !== ''); // safe to access props
+		.filter((a): a is Article => a !== null)
+		.filter((a) => a.title !== '' && a.url !== '');
 }
 
 export const GET: RequestHandler = async () => {
-	const results = await Promise.allSettled(
-		FEEDS.map(async (u) => {
+	const active = getSources().filter((s) => s.active !== false);
+
+	const lists = await Promise.allSettled(
+		active.map(async (src) => {
 			try {
-				return normalize(await fetchText(u), u);
+				const ttl = src.ttlMs ?? 5 * 60_000; // allow per-source TTL override
+				const xml = await fetchText(src.url, ttl);
+				const articles = normalize(xml, src.url);
+				return articles;
 			} catch {
 				return [] as Article[];
 			}
 		})
 	);
 
-	const merged = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+	const merged = lists.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
 	const deduped = merged
 		.filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i)
 		.sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt));
 
 	if (deduped.length === 0) {
 		return new Response(
-			JSON.stringify({ items: [], error: 'All feeds failed or were filtered as non‑Kenyan.' }),
+			JSON.stringify({ items: [], error: 'All feeds failed or were non‑Kenyan.' }),
 			{
 				status: 502,
 				headers: { 'content-type': 'application/json' }
 			}
 		);
 	}
+
 	return new Response(JSON.stringify({ items: deduped }), {
 		headers: { 'content-type': 'application/json' }
 	});
