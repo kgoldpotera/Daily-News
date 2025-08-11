@@ -10,22 +10,12 @@
   let kenya: Article[] = [];
   let globalBrief: Article[] = [];
   let errorMsg = '';
-  let lastUpdated = '';
-
-  // Simple category filter chips for the new UI
-  const chips = ['All', 'Politics', 'Business', 'Sports', 'Tech', 'Health', 'Entertainment'] as const;
-  type Chip = typeof chips[number];
-  let categoryFilter: Chip = 'All';
-
-  function applyFilter(items: Article[]) {
-    if (categoryFilter === 'All') return items;
-    return items.filter((a) => a.category === categoryFilter);
-  }
 
   async function refresh() {
     const errs: string[] = [];
+
     try {
-      const r = await fetch('/api/kenya');
+      const r = await fetch('/api/kenya', { cache: 'no-store' });
       const j = await r.json();
       if (r.ok) kenya = (j.items ?? []) as Article[];
       else errs.push(`Kenya ${r.status}${j?.error ? ' • ' + j.error : ''}`);
@@ -34,7 +24,7 @@
     }
 
     try {
-      const r = await fetch('/api/global');
+      const r = await fetch('/api/global', { cache: 'no-store' });
       const j = await r.json();
       if (r.ok) globalBrief = (j.items ?? []) as Article[];
       else errs.push(`Global ${r.status}${j?.error ? ' • ' + j.error : ''}`);
@@ -42,68 +32,83 @@
       errs.push(`Global fetch error: ${String(e)}`);
     }
 
-    lastUpdated = new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
     errorMsg = errs.join(' | ');
   }
 
   onMount(refresh);
 
-  // Derived lists for the UI
-  $: kenyaTop = applyFilter(kenya);
-  $: globalTop = applyFilter(globalBrief);
+  // Derived lists
+  $: kenyaTop = kenya;
+  $: globalTop = globalBrief;
 
-  // Pagination control (avoids reassigning reactive var)
+  // Pagination
   let visibleKe = 12;
+  let visibleGl = 8;
+
   $: kenyaShown = kenyaTop.slice(0, visibleKe);
+  $: globalShown = globalTop.slice(0, visibleGl);
 </script>
 
-<!-- Header / nav (sticky) -->
-<Header active="News" />
+<!-- Page flex wrapper ensures footer sticks to bottom -->
+<div class="page">
+  <!-- Header / nav (sticky via component styles) -->
+  <Header active="News" />
 
-<!-- Lead hero using first few Kenya items -->
-<Hero items={kenyaTop} />
+  <!-- Main grows to fill remaining height -->
+  <main class="content">
+    <!-- Lead hero using first few Kenya items -->
+    <Hero items={kenyaTop} />
 
-<section class="container section">
-  <div class="section-header">
-    <h3>Latest Kenya</h3>
-    <div class="chips">
-      {#each chips as c (c)}
-        <button
-          class="chip"
-          on:click={() => (categoryFilter = c)}
-          aria-pressed={categoryFilter === c}
-        >
-          {c}
-        </button>
-      {/each}
-      <small class="muted">Updated {lastUpdated} EAT</small>
-      <button class="btn" on:click={refresh} aria-label="Refresh">↻ Refresh</button>
-    </div>
-  </div>
+    <section class="container section">
+      <div class="section-header">
+        <h3>Latest Kenya</h3>
+      </div>
 
-  {#if errorMsg}
-    <p class="muted" style="color:#b00020;">{errorMsg}</p>
-  {/if}
+      {#if errorMsg}
+        <p class="muted" style="color:#b00020;">{errorMsg}</p>
+      {/if}
 
-  <div class="grid">
-    {#each kenyaShown as a (a.id || a.url)}
-      <Card {a} />
-    {/each}
-  </div>
-  {#if kenyaTop.length > visibleKe}
-    <button class="btn loadmore" on:click={() => (visibleKe += 12)}>Load more</button>
-  {/if}
-</section>
+      <div class="grid">
+        {#each kenyaShown as a (a.id || a.url)}
+          <Card {a} />
+        {/each}
+      </div>
 
-<section class="container section">
-  <div class="section-header">
-    <h3>Global Brief</h3>
-  </div>
-  <div class="grid">
-    {#each globalTop.slice(0, 8) as a (a.id || a.url)}
-      <Card {a} />
-    {/each}
-  </div>
-</section>
+      {#if kenyaTop.length > visibleKe}
+        <button class="btn loadmore" on:click={() => (visibleKe += 12)}>Load more</button>
+      {/if}
+    </section>
 
-<Footer />
+    <section class="container section">
+      <div class="section-header">
+        <h3>Global Brief</h3>
+      </div>
+
+      <div class="grid">
+        {#each globalShown as a (a.id || a.url)}
+          <Card {a} />
+        {/each}
+      </div>
+
+      {#if globalTop.length > visibleGl}
+        <button class="btn loadmore" on:click={() => (visibleGl += 8)}>Load more</button>
+      {/if}
+    </section>
+  </main>
+
+  <Footer />
+</div>
+
+<style>
+  /* Flex column page: header (auto), main (flex:1), footer (auto) */
+  .page {
+    min-height: 100dvh; /* modern viewport unit */
+    min-height: 100svh; /* fallback on mobile Safari */
+    display: flex;
+    flex-direction: column;
+  }
+  .content {
+    flex: 1 0 auto;
+    display: block;
+  }
+</style>

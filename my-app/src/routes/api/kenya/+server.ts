@@ -5,12 +5,17 @@ import { mapCategoryFrom } from '$lib/utils/categories';
 import { toPlainText } from '$lib/utils/sanitize';
 import { getCached, setCached } from '$lib/server/cache';
 import type { Article } from '$lib/types';
-// remove: import { KENYA_SOURCES, KENYAN_HOSTS } from '$lib/sources/kenya';
 import { KENYAN_HOSTS } from '$lib/sources/kenya';
-import { getSources } from '$lib/server/admin_store';
-
+import { fetchOgImage } from '$lib/server/og-image';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
+
+/** RSS/Atom feeds from Kenyan outlets (extend as needed) */
+const FEEDS: string[] = [
+	'https://www.standardmedia.co.ke/rss/headlines.php',
+	'https://www.capitalfm.co.ke/news/feed/',
+	'https://www.kbc.co.ke/feed/'
+];
 
 const idFor = (url: string, title: string) =>
 	createHash('md5')
@@ -258,37 +263,42 @@ function normalize(xml: string, feedUrl: string): Article[] {
 }
 
 export const GET: RequestHandler = async () => {
-	const active = getSources().filter((s) => s.active !== false);
-
-	const lists = await Promise.allSettled(
-		active.map(async (src) => {
+	const results = await Promise.allSettled<Article[]>(
+		FEEDS.map(async (u: string) => {
 			try {
-				const ttl = src.ttlMs ?? 5 * 60_000; // allow per-source TTL override
-				const xml = await fetchText(src.url, ttl);
-				const articles = normalize(xml, src.url);
-				return articles;
+				return normalize(await fetchText(u), u);
 			} catch {
 				return [] as Article[];
 			}
 		})
 	);
 
-	const merged = lists.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
-	const deduped = merged
+	const merged: Article[] = results.flatMap((r: PromiseSettledResult<Article[]>) =>
+		r.status === 'fulfilled' ? r.value : []
+	);
+	const deduped: Article[] = merged
 		.filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i)
 		.sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt));
 
 	if (deduped.length === 0) {
 		return new Response(
-			JSON.stringify({ items: [], error: 'All feeds failed or were non‑Kenyan.' }),
-			{
-				status: 502,
-				headers: { 'content-type': 'application/json' }
-			}
+			JSON.stringify({ items: [], error: 'All feeds failed or were filtered as non‑Kenyan.' }),
+			{ status: 502, headers: { 'content-type': 'application/json' } }
 		);
 	}
 
-	return new Response(JSON.stringify({ items: deduped }), {
+	// Add og:image fallback where missing (limit for speed)
+	const withImages: Article[] = await Promise.all(
+		deduped.slice(0, 30).map(async (a: Article) => {
+			if (!a.image) {
+				const og = await fetchOgImage(a.url);
+				if (og) a.image = og;
+			}
+			return a;
+		})
+	);
+
+	return new Response(JSON.stringify({ items: withImages }), {
 		headers: { 'content-type': 'application/json' }
 	});
 };

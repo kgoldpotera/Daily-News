@@ -1,56 +1,96 @@
-<footer role="contentinfo">
-  <div class="grid">
-    <section>
-      <h3>About</h3>
-      <p>Fast, clean headlines from Kenya + concise world summaries. No noise — just news.</p>
-    </section>
-    <section>
-      <h3>Sections</h3>
-      <ul>
-        <li><a href="/business">Business</a></li>
-        <li><a href="/sports">Sports</a></li>
-        <li><a href="/tech">Tech</a></li>
-        <li><a href="/entertainment">Entertainment</a></li>
-        <li><a href="/health">Health</a></li>
-      </ul>
-    </section>
-    <section>
-      <h3>Follow</h3>
-      <ul>
-        <li><a href="https://x.com" rel="noopener">X</a></li>
-        <li><a href="https://youtube.com" rel="noopener">YouTube</a></li>
-        <li><a href="mailto:news@yourdomain.tld">Email</a></li>
-      </ul>
-    </section>
-  </div>
-  <div class="legal">© {new Date().getFullYear()} Kenya Now • All rights reserved.</div>
+<!-- src/lib/ui/Footer.svelte -->
+<script lang="ts">
+  const year = new Date().getFullYear();
+</script>
 
-  <style>
-    footer {
-      border-top: 1px solid var(--border);
-      background: var(--background);
-      padding: 2rem 1rem;
-      color: var(--text-color);
-    }
-    .grid {
-      width: min(1200px, 100%);
-      margin-inline: auto;
-      display: grid;
-      gap: 1.5rem;
-      grid-template-columns: 2fr 1fr 1fr;
-    }
-    h3 { margin: 0 0 .5rem; font-size: 1rem; }
-    ul { list-style: none; padding: 0; margin: 0; display: grid; gap: .35rem; }
-    a { color: var(--text-color); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .legal {
-      width: min(1200px, 100%);
-      margin: 1.25rem auto 0;
-      font-size: .9rem;
-      opacity: .75;
-    }
-    @media (max-width: 780px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-  </style>
+<footer class="site-footer" role="contentinfo">
+  <div class="wrap">
+    <p class="tagline">Fast, clean headlines from Kenya + concise world summaries. No noise — just news.</p>
+
+    <nav class="actions" aria-label="Follow">
+      <a class="chip" href="https://x.com" rel="noopener" target="_blank">X</a>
+      <a class="chip" href="https://youtube.com" rel="noopener" target="_blank">YouTube</a>
+      <a class="chip" href="mailto:news@yourdomain.tld">Email</a>
+      <span class="copy">© {year} Kenya Now</span>
+    </nav>
+  </div>
 </footer>
+
+<style>
+  /* Make it “sticky” when the page wrapper is a flex column */
+  .site-footer {
+    margin-top: auto; /* key line for sticky-in-flex */
+    color: #fff;
+    border-top: 1px solid #ffffff26;
+    padding: .65rem 1rem;
+
+    /* Same theme direction as header (palette already defined in app.css) */
+    background: linear-gradient(
+      100deg,
+      var(--hdr-crow) 0%,
+      var(--hdr-umber) 55%,
+      var(--hdr-rose) 100%
+    );
+  }
+
+  .wrap {
+    width: min(1200px, 100%);
+    margin-inline: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+  }
+
+  .tagline {
+    margin: 0;
+    font-size: .95rem;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .35rem .6rem;
+    border-radius: 999px;
+    border: 1px solid #ffffff33;
+    background: #ffffff1a;
+    color: #fff;
+    text-decoration: none;
+    font-size: .9rem;
+    white-space: nowrap;
+  }
+  .chip:hover { background: #ffffff26; }
+
+  .copy {
+    opacity: .95;
+    font-size: .9rem;
+    margin-left: .25rem;
+  }
+
+  @media (max-width: 720px) {
+    .wrap {
+      flex-direction: column;
+      align-items: stretch;
+      gap: .6rem;
+    }
+    .actions {
+      justify-content: space-between;
+    }
+    .copy {
+      margin-left: 0;
+      order: 2;
+      width: 100%;
+      text-align: right;
+    }
+  }
+</style>
