@@ -21,16 +21,16 @@
     return () => window.removeEventListener('scroll', onScroll);
   });
 
-  export let active: string | undefined; // <-- accept the prop; optional
+  export let active: string | undefined;
 </script>
 
-<!-- remove role="banner" to silence a11y warning -->
 <header class:shadowed={scrolled}>
   <div class="bar">
     <div class="inner">
-      <a class="brand" href="/">
-        <span class="mark" aria-hidden="true"></span>
-        <span>Kenya Now</span>
+      <a class="brand" href="/" aria-label="SPOTLIGHT KE — Home">
+        <!-- SVG logo mark -->
+        <img class="mark" src="/logo-spotlightke.svg" alt="" width="22" height="22" decoding="async" />
+        <span class="brand-text">SPOTLIGHT KE</span>
       </a>
 
       <nav class="nav" aria-label="Primary">
@@ -69,8 +69,17 @@
     display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 1rem;
     width: min(1200px, 100%); margin-inline: auto; padding: .65rem 1rem;
   }
-  .brand { display: inline-flex; align-items: center; gap: .55rem; font-weight: 900; font-size: 1.25rem; text-decoration: none; color: #fff; letter-spacing: .2px; }
-  .mark { width: 22px; height: 22px; border-radius: 6px; background: #fff2; border: 1px solid #fff3; box-shadow: inset 0 0 0 1px #0002; }
+
+  .brand {
+    display: inline-flex; align-items: center; gap: .55rem;
+    font-weight: 900; font-size: 1.15rem; text-decoration: none; color: #fff; letter-spacing: .4px;
+  }
+  /* image mark */
+  .mark {
+    display: block;
+    width: 22px; height: 22px;
+  }
+  .brand-text { text-transform: uppercase; }
 
   .nav { display: none; align-items: center; gap: 14px; }
   .nav__link { color: #fff; text-decoration: none; padding: .55rem .4rem; border-bottom: 3px solid transparent; white-space: nowrap; opacity: .95; }
@@ -102,7 +111,6 @@
     .search { display: block; }
   }
 
-  /* helper for the visually-hidden span in the button */
   .sr-only {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
     clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;

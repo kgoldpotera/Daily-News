@@ -8,8 +8,6 @@
     <p class="tagline">Fast, clean headlines from Kenya + concise world summaries. No noise — just news.</p>
 
     <nav class="actions" aria-label="Follow">
-      <a class="chip" href="https://x.com" rel="noopener" target="_blank">X</a>
-      <a class="chip" href="https://youtube.com" rel="noopener" target="_blank">YouTube</a>
       <a class="chip" href="mailto:news@yourdomain.tld">Email</a>
       <span class="copy">© {year} Kenya Now</span>
     </nav>

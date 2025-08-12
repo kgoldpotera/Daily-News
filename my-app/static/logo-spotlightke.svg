@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="900" height="900" viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotlight KE logo">
+  <defs>
+    <style>
+      .blk{fill:#151314;}
+      .ylw{fill:#F2C40F;}
+      .grn{fill:#1E8A4B;}
+      .red{fill:#C62828;}
+      .wht{fill:#FFFFFF;}
+      .text{fill:#151314;font-family: 'Montserrat', 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;font-weight:800;letter-spacing:.5px}
+    </style>
+  </defs>
+
+  <!-- SAFE AREA -->
+  <rect x="0" y="0" width="900" height="900" fill="none"/>
+
+  <!-- Base tile (black panel with flag trims) -->
+  <g transform="translate(160,120)">
+    <!-- black panel -->
+    <rect class="blk" x="360" y="100" width="260" height="360" rx="8"/>
+
+    <!-- Kenya flag trims at bottom of panel -->
+    <rect class="grn" x="360" y="420" width="260" height="22"/>
+    <rect class="wht" x="360" y="442" width="260" height="14"/>
+    <rect class="red" x="360" y="456" width="260" height="24"/>
+
+    <!-- spotlight beam -->
+    <!-- polygon roughly matching your beam angle -->
+    <polygon class="ylw" points="40,360 280,140 470,220 315,510 40,510"/>
+
+    <!-- lamp head -->
+    <g transform="translate(430,10)">
+      <!-- handle -->
+      <rect class="blk" x="150" y="5" width="150" height="40" rx="20" transform="rotate(45 150 5) translate(20,-35)"/>
+      <!-- head outer -->
+      <path class="blk" d="M60 70c0-58 47-105 105-105s105 47 105 105-47 105-105 105S60 128 60 70z"/>
+      <!-- head ring -->
+      <path class="wht" d="M95 70c0-38 31-69 69-69 38 0 69 31 69 69 0 38-31 69-69 69-38 0-69-31-69-69z" opacity=".9"/>
+      <!-- head inner (to emulate ring cut) -->
+      <path class="blk" d="M108 70c0-30 24-54 54-54s54 24 54 54-24 54-54 54-54-24-54-54z"/>
+      <!-- bulb highlight -->
+      <ellipse class="wht" cx="162" cy="72" rx="32" ry="22" opacity=".95"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(120,640)">
+    <text class="text" x="0" y="0" font-size="120">SPOTLIGHT</text>
+    <text class="text" x="260" y="120" font-size="120">KE</text>
+  </g>
+</svg>

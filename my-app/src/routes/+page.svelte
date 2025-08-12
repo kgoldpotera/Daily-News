@@ -118,9 +118,6 @@
 
     <!-- Browse by category -->
     <section class="container section">
-      <div class="section-header">
-        <h3>Browse by category</h3>
-      </div>
 
       {#each orderedCats as c (c)}
         {#if topFor(c).length}
