@@ -6,6 +6,7 @@
   import Footer from '$lib/ui/Footer.svelte';
   import Hero from '$lib/ui/Hero.svelte';
   import Card from '$lib/ui/ArticleCard.svelte';
+  import { CAT_TO_SLUG } from '$lib/utils/cat-slug';
 
   let kenya: Article[] = [];
   let globalBrief: Article[] = [];
@@ -41,28 +42,34 @@
   $: kenyaTop = kenya;
   $: globalTop = globalBrief;
 
-  // Pagination
+  // Pagination (home)
   let visibleKe = 12;
   let visibleGl = 8;
 
   $: kenyaShown = kenyaTop.slice(0, visibleKe);
   $: globalShown = globalTop.slice(0, visibleGl);
+
+  // Category preview buckets from both feeds
+  const orderedCats = ['Business','Sports','Tech','Health','Entertainment'] as const;
+  type Cat = typeof orderedCats[number];
+
+  $: merged = [...kenyaTop, ...globalTop];
+  function topFor(cat: Cat, n = 6) {
+    return merged
+      .filter(a => a.category === cat)
+      .sort((a,b) => +new Date(b.publishedAt) - +new Date(a.publishedAt))
+      .slice(0, n);
+  }
 </script>
 
-<!-- Page flex wrapper ensures footer sticks to bottom -->
 <div class="page">
-  <!-- Header / nav (sticky via component styles) -->
   <Header active="News" />
 
-  <!-- Main grows to fill remaining height -->
   <main class="content">
-    <!-- Lead hero using first few Kenya items -->
     <Hero items={kenyaTop} />
 
     <section class="container section">
-      <div class="section-header">
-        <h3>Latest Kenya</h3>
-      </div>
+      <div class="section-header"><h3>Latest Kenya</h3></div>
 
       {#if errorMsg}
         <p class="muted" style="color:#b00020;">{errorMsg}</p>
@@ -80,9 +87,7 @@
     </section>
 
     <section class="container section">
-      <div class="section-header">
-        <h3>Global Brief</h3>
-      </div>
+      <div class="section-header"><h3>Global Brief</h3></div>
 
       <div class="grid">
         {#each globalShown as a (a.id || a.url)}
@@ -94,21 +99,48 @@
         <button class="btn loadmore" on:click={() => (visibleGl += 8)}>Load more</button>
       {/if}
     </section>
+
+    <!-- Browse by category -->
+    <section class="container section">
+      <div class="section-header">
+        <h3>Browse by category</h3>
+      </div>
+
+      {#each orderedCats as c (c)}
+        {#if topFor(c).length}
+          <div class="cat-block" id={CAT_TO_SLUG[c]}>
+            <div class="cat-head">
+              <h4>{c}</h4>
+              <a class="seeall" href={'/' + CAT_TO_SLUG[c]}>See all →</a>
+            </div>
+            <div class="grid small">
+              {#each topFor(c) as a (a.id || a.url)}
+                <Card {a} />
+              {/each}
+            </div>
+          </div>
+        {/if}
+      {/each}
+    </section>
   </main>
 
   <Footer />
 </div>
 
 <style>
-  /* Flex column page: header (auto), main (flex:1), footer (auto) */
-  .page {
-    min-height: 100dvh; /* modern viewport unit */
-    min-height: 100svh; /* fallback on mobile Safari */
-    display: flex;
-    flex-direction: column;
+  .page { min-height: 100dvh; min-height: 100svh; display: flex; flex-direction: column; }
+  .content { flex: 1 0 auto; }
+
+  .muted { opacity: .7; }
+  .cat-block { margin: 22px 0; }
+  .cat-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 8px;
   }
-  .content {
-    flex: 1 0 auto;
-    display: block;
+  .cat-head h4 { margin:0; }
+  .seeall {
+    text-decoration: none;
+    padding:.35rem .6rem; border:1px solid var(--border); border-radius:.6rem;
   }
+  .grid.small { --card-min: 230px; }
 </style>
