@@ -2,17 +2,33 @@
   import Header from '$lib/ui/Header.svelte';
   import Footer from '$lib/ui/Footer.svelte';
   import Card from '$lib/ui/ArticleCard.svelte';
-  import { goto } from '$app/navigation';
   import type { PageData } from './$types';
+  import { browser } from '$app/environment';
+  import { getRecent, upsertArticles } from '$lib/db/news-db';
 
   export let data: PageData;
-  const { cat, items, total, page, pageSize, hasMore } = data;
+  let { cat, items, total, page, pageSize, hasMore } = data;
 
-  function nextPage() {
-    const p = page + 1;
-    goto(`?page=${p}&size=${pageSize}`, { keepFocus: true, noScroll: true });
+  // Paint cached first (client)
+  if (browser && cat) {
+    Promise.all([getRecent('kenya', 80), getRecent('global', 80)]).then(([k, g]) => {
+      const cached = [...k, ...g].filter(a => a.category === cat);
+      if (cached.length && !items.length) {
+        items = cached.slice(0, pageSize);
+        total = cached.length;
+        hasMore = cached.length > pageSize;
+      }
+    });
+  }
+
+  // If the loaded data has items, refresh the cache too
+  $: if (browser && items?.length) {
+    // No harm in updating both feeds—upsert handles IDs
+    upsertArticles('kenya', items);
+    upsertArticles('global', items);
   }
 </script>
+
 
 <div class="page">
   <Header active={cat ?? 'News'} />

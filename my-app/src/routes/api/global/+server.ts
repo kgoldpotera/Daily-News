@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { XMLParser } from 'fast-xml-parser';
-import crypto from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { summarizeToSentences } from '$lib/utils/summarize';
 import { mapCategoryFrom } from '$lib/utils/categories';
 import type { Article } from '$lib/types';
@@ -17,12 +17,10 @@ const FEEDS: string[] = [
 ];
 
 const idFor = (url: string, title: string) =>
-	crypto
-		.createHash('md5')
+	createHash('md5')
 		.update((url || '') + (title || ''))
 		.digest('hex');
 
-/** --- Minimal RSS types to avoid `any` --- */
 type RssItem = {
 	title?: string;
 	link?: string;
@@ -43,7 +41,6 @@ export const GET: RequestHandler = async () => {
 			const res = await fetch(url, {
 				headers: {
 					'User-Agent': 'KenyaNow/0.3',
-					// hint upstream + proxies not to cache
 					'Cache-Control': 'no-cache'
 				}
 			});
@@ -104,16 +101,14 @@ export const GET: RequestHandler = async () => {
 	return new Response(
 		JSON.stringify({
 			items: withImages,
-			fetchedAt: new Date().toISOString() // handy for debugging freshness
+			fetchedAt: new Date().toISOString()
 		}),
 		{
 			headers: {
 				'content-type': 'application/json',
-				// make sure the browser / proxies don’t cache
 				'cache-control': 'no-store, max-age=0, must-revalidate',
 				pragma: 'no-cache',
 				expires: '0',
-				// if you’re behind a CDN, this helps too:
 				'CDN-Cache-Control': 'no-store'
 			}
 		}

@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { XMLParser } from 'fast-xml-parser';
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 import { mapCategoryFrom } from '$lib/utils/categories';
 import { toPlainText } from '$lib/utils/sanitize';
 import { getCached, setCached } from '$lib/server/cache';
