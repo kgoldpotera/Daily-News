@@ -27,11 +27,11 @@
 <header class:shadowed={scrolled}>
   <div class="bar">
     <div class="inner">
-      <a class="brand" href="/" aria-label="SPOTLIGHT KE — Home">
-        <!-- SVG logo mark -->
-        <img class="mark" src="/logo-spotlightke.svg" alt="" width="22" height="22" decoding="async" />
-        <span class="brand-text">SPOTLIGHT KE</span>
-      </a>
+      <a class="brand" href="/">
+  <img class="logo" src="/spotlight-ke.svg" alt="" />
+  <span>SPOTLIGHT KE</span>
+</a>
+
 
       <nav class="nav" aria-label="Primary">
         {#each sections as s (s.slug)}
@@ -74,6 +74,18 @@
     display: inline-flex; align-items: center; gap: .55rem;
     font-weight: 900; font-size: 1.15rem; text-decoration: none; color: #fff; letter-spacing: .4px;
   }
+
+  .logo {
+  width: 28px;
+  height: 28px;
+  display: inline-block;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px #0002;
+}
+@media (min-width: 980px) {
+  .logo { width: 32px; height: 32px; }
+}
+
   /* image mark */
   .mark {
     display: block;

@@ -1,11 +1,6 @@
-// src/lib/utils/cat-slug.ts
 import type { Category } from '$lib/types';
 
-/**
- * We don't expose a "Politics" route (News is the homepage),
- * so this map is partial on purpose.
- */
-export const CAT_TO_SLUG: Partial<Record<Category, string>> = {
+export const CAT_TO_SLUG: Record<Category, string> = {
 	Business: 'business',
 	Sports: 'sports',
 	Tech: 'tech',
@@ -13,9 +8,8 @@ export const CAT_TO_SLUG: Partial<Record<Category, string>> = {
 	Entertainment: 'entertainment'
 };
 
-// Build reverse lookup only from defined entries
 export const SLUG_TO_CAT: Record<string, Category> = Object.fromEntries(
-	Object.entries(CAT_TO_SLUG).map(([cat, slug]) => [slug as string, cat as Category])
+	(Object.entries(CAT_TO_SLUG) as [Category, string][]).map(([cat, slug]) => [slug, cat])
 ) as Record<string, Category>;
 
 export function catFromSlug(slug?: string): Category | null {

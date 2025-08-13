@@ -1,21 +1,14 @@
-// src/lib/types.ts
+// Keep categories aligned with your header (no Politics route right now)
+export type Category = 'Business' | 'Sports' | 'Tech' | 'Health' | 'Entertainment';
 
-// Canonical categories we use across the app
-export type Category = 'Politics' | 'Business' | 'Sports' | 'Tech' | 'Health' | 'Entertainment';
-
-// Normalized article shape
 export type Article = {
-	id?: string;
+	id: string;
 	source: string;
 	title: string;
 	url: string;
 	image?: string;
 	excerpt?: string;
 	summary?: string;
-
-	// Keep union for compatibility while we migrate utils/mapCategoryFrom
-	// Later we can tighten this to just `Category`.
-	category?: Category | string;
-
+	category?: Category;
 	publishedAt: string; // ISO
 };
